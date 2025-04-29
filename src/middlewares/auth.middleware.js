@@ -23,7 +23,6 @@ export const verifyToken = asyncHandler(async (req, _, next) => {
   try {
     const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
 
-    console.log(decodedToken);
 
     const user = await User.findById(decodedToken?.userId);
 
@@ -43,3 +42,17 @@ export const verifyToken = asyncHandler(async (req, _, next) => {
     throw new ApiError(500, "An error occurred while verifying the token.");
   }
 });
+
+// Middleware for role-based access control
+export const restrictTo = (...roles) => {
+  return asyncHandler(async (req, res, next) => {
+    // roles is an array ['admin', 'instructor']
+    if (!roles.includes(req.user.role)) {
+      throw new ApiError(
+        403,
+        "You do not have permission to perform this action"
+      );
+    }
+    next();
+  });
+};

@@ -117,7 +117,7 @@ userSchema.methods.updateLastActive = function () {
 
 //* virtuals are not stored in the database, but they can be used to calculate values based on other fields in the schema
 userSchema.virtual("totalEnrolledCourses").get(function () {
-  return this.enrolledCourses.length;
+  return this.enrolledCourses?.length;
 });
 
 export const User = mongoose.model("User", userSchema);

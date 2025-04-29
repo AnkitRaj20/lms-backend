@@ -135,10 +135,9 @@ export const updateProfile = asyncHandler(async (req, res) => {
 });
 
 export const changeUserPassword = asyncHandler(async (req, res) => {
-  // TODO: Implement change user password functionality
   const { currentPassword, newPassword } = req.body;
   const userId = req.user._id;
-  console.log(">>>>>", currentPassword, newPassword);
+
   const user = await User.findById(userId).select("+password");
 
   if (!user) {
