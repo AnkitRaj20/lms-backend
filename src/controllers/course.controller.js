@@ -38,17 +38,55 @@ export const createNewCourse = asyncHandler(async (req, res) => {
  */
 export const searchCourses = asyncHandler(async (req, res) => {
   // TODO: Implement search courses functionality
-  const { title, category, level } = req.query;
+  const {
+    query = "",
+    categories = [],
+    level,
+    priceRange,
+    sortBy = "newest",
+  } = req.query;
 
-  const filters = {};
+  // Create search query
+  const searchCriteria = {
+    isPublished: true,
+    $or: [
+      { title: { $regex: query, $options: "i" } },
+      { subtitle: { $regex: query, $options: "i" } },
+      { description: { $regex: query, $options: "i" } },
+    ],
+  };
 
-  if (title) filters.title = { $regex: title, $options: "i" };
-  if (category) filters.category = category;
-  if (level) filters.level = level;
+  // Apply filters
+  if (categories.length > 0) {
+    searchCriteria.category = { $in: categories };
+  }
+  if (level) {
+    searchCriteria.level = level;
+  }
 
-  const courses = await Course.find(filters)
+  if (priceRange) {
+    const [min, max] = priceRange.split("-");
+    searchCriteria.price = { $gte: min || 0, $lte: max || Infinity };
+  }
+  // Define sorting
+  const sortOptions = {};
+  switch (sortBy) {
+    case "price-low":
+      sortOptions.price = 1;
+      break;
+    case "price-high":
+      sortOptions.price = -1;
+      break;
+    case "oldest":
+      sortOptions.createdAt = 1;
+      break;
+    default:
+      sortOptions.createdAt = -1;
+  }
+
+  const courses = await Course.find(searchCriteria)
     .populate("instructor", "name avatar")
-    .sort({ createdAt: -1 });
+    .sort(sortOptions);
 
   if (!courses || courses.length === 0) {
     throw new ApiError("No courses found with the given filters");
@@ -63,18 +101,46 @@ export const searchCourses = asyncHandler(async (req, res) => {
  */
 export const getPublishedCourses = asyncHandler(async (req, res) => {
   // TODO: Implement get published courses functionality
-  const courses = await Course.find({ isPublished: true }).populate(
-    "instructor",
-    "name avatar"
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+  // const courses = await Course.find({ isPublished: true }).populate(
+  //   "instructor",
+  //   "name avatar"
+  // );
+
+  const [courses, total] = await Promise.all([
+    Course.find({ isPublished: true })
+      .populate({
+        path: "instructor",
+        select: "name avatar",
+      })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+
+    Course.countDocuments({ isPublished: true }),
+  ]);
+
+  // if (total === 0) {
+  //   throw new ApiError(404,"No published courses found");
+  // }
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        courses,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        },
+      },
+      "Published courses found"
+    )
   );
-
-  if (!courses || courses.length === 0) {
-    throw new ApiError("No published courses found");
-  }
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, courses, "Published courses found"));
 });
 
 /**
@@ -142,20 +208,24 @@ export const updateCourseDetails = asyncHandler(async (req, res) => {
 export const getCourseDetails = asyncHandler(async (req, res) => {
   // TODO: Implement get course details functionality
   const { id: courseId } = req.params;
-  const course = await Course.findById(courseId).populate(
-    "instructor",
-    "name avatar"
-  );
+  const course = await Course.findById(courseId)
+    .populate("instructor", "name avatar bio")
+    .populate("lectures", "title description videoUrl order isPreview");
 
   if (!course) {
     throw new ApiError(404, "Course not found");
   }
 
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(200, course, "Course details retrieved successfully")
-    );
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        ...course.toJSON(),
+        averageRating: course.averageRating,
+      },
+      "Course details retrieved successfully"
+    )
+  );
 });
 
 /**
@@ -164,9 +234,9 @@ export const getCourseDetails = asyncHandler(async (req, res) => {
  */
 export const addLectureToCourse = asyncHandler(async (req, res) => {
   // TODO: Implement add lecture to course functionality
-  const { id: courseId, order } = req.params;
+  const { id: courseId } = req.params;
 
-  const { title, description } = req.body;
+  const { title, description, isPreview } = req.body;
 
   const instructor = req.user._id; // Assuming the instructor is the logged-in user
 
@@ -182,23 +252,28 @@ export const addLectureToCourse = asyncHandler(async (req, res) => {
     );
   }
 
-  if (req?.file) {
-    const videoLocalPath = req.file.path;
-    const videoCloudPath = await uploadOnCloudinary(videoLocalPath);
-
-    req.body.videoUrl = videoCloudPath?.secure_url;
+  // Handle video upload
+  if (!req.file) {
+    throw new ApiError(404, "Video file is required");
   }
+
+  const videoLocalPath = req.file.path;
+  const videoCloudPath = await uploadOnCloudinary(videoLocalPath);
+
+  console.log("videoCloudPath from cloudinary", videoCloudPath);
 
   const lecture = await Lecture.create({
     title,
     description,
-    videoUrl: req.body.videoUrl,
-    order,
+    isPreview,
+    videoUrl: videoCloudPath?.secure_url,
+    publicId: videoCloudPath?.public_id,
+    order: course.lectures.length + 1,
+    duration: videoCloudPath?.duration || 0, // Cloudinary provides duration for video files
   });
   course.lectures.push(lecture._id);
 
   await course.save();
-  await lecture.save();
 
   return res
     .status(201)
@@ -216,23 +291,36 @@ export const getCourseLectures = asyncHandler(async (req, res) => {
 
   const { id: courseId } = req.params;
 
-  // const course = await Course.findById(courseId).populate("lectures");
-  // if (!course) {
-  //   throw new ApiError(404, "Course not found");
-  // }
-
-  const lectures = await Lecture.find({ course: courseId }).populate(
-    "course",
-    "title description thumbnail price lessons instructor level"
-  );
-
-  if (!lectures || lectures.length === 0) {
-    throw new ApiError(404, "No lectures found for this course");
+  const course = await Course.findById(courseId).populate({
+    path: "lectures",
+    select: "title description videoUrl duration order isPreview",
+    options: {
+      sort: { order: 1 }, // Sort lectures by order
+    },
+  });
+  if (!course) {
+    throw new ApiError(404, "Course not found");
   }
 
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(200, lectures, "Course lectures retrieved successfully")
-    );
+  const isEnrolled = course.enrolledStudents.includes(req.user.id);
+  const isInstructor = course.instructor.toString() === req.user.id;
+
+  let lectures = course.lectures;
+
+  if (!isEnrolled && !isInstructor) {
+    // Only return preview lectures for non-enrolled users
+    lectures = lectures.filter((lecture) => lecture.isPreview);
+  }
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        lectures,
+        isEnrolled,
+        isInstructor,
+      },
+      "Course lectures retrieved successfully"
+    )
+  );
 });

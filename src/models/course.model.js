@@ -79,28 +79,22 @@ const courseSchema = new Schema(
       default: 0,
     },
   },
-  { timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
-   }
+  { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );
 
+courseSchema.virtual("averageRating").get(function () {
+  // Calculate the average rating of the course
+  if (this.ratings?.length === undefined || this.ratings?.length === 0) return 0;
+  const totalRatings = this.ratings.reduce((acc, rating) => acc + rating, 0);
+  return totalRatings / this.ratings.length;
+});
 
-courseSchema.virtual("averageRating").get(function(){
-    //! TODO:- This is my task to complete
-    // Calculate the average rating of the course
-    // if (this.ratings.length === 0) return 0;
-    // const totalRatings = this.ratings.reduce((acc, rating) => acc + rating, 0);
-    // return totalRatings / this.ratings.length;
-})
+courseSchema.pre("save", function (next) {
+  if (this.lectures) {
+    this.totalLectures = this.lectures.length;
+  }
 
-
-courseSchema.pre("save" , function(next){
-    if(this.lectures){
-        this.totalLectures = this.lectures.length;
-    }
-
-    next();
-})
+  next();
+});
 
 export const Course = mongoose.model("Course", courseSchema);

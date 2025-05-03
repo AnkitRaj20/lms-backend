@@ -6,6 +6,7 @@ import ApiError from "../utils/ApiError.util.js";
 import { ApiResponse } from "../utils/ApiResponse.util.js";
 import logger from "../../logger.js";
 import { PaymentStatus } from "../constants/constant.js";
+import asyncHandler from "../utils/asyncHandler.util.js";
 
 const razorpayInstance = new razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -26,6 +27,8 @@ export const createRazorpayOrder = async (req, res) => {
       user: userId,
       course: courseId,
       amount: course.price,
+      status: "pending",
+      paymentMethod: "razorpay",
     });
 
     const options = {
@@ -110,3 +113,52 @@ export const verifyRazorpayPayment = async (req, res) => {
       .json(new ApiError(500, "Payment verification failed"));
   }
 };
+
+export const getCoursePurchaseStatus = asyncHandler(async (req, res) => {
+  const { courseId } = req.params;
+
+  // Find course with populated data
+  const course = await Course.findById(courseId)
+    .populate("instructor", "name avatar")
+    .populate("lectures", "lectureTitle videoUrl duration");
+
+  if (!course) {
+    throw new ApiError("Course not found", 404);
+  }
+
+  // Check if user has purchased the course
+  const purchased = await CoursePurchase.exists({
+    user: req.user._id,
+    course: courseId,
+    status: "completed",
+  });
+
+  res.status(200).json(
+    new ApiResponse(200, {
+      course,
+      isPurchased: Boolean(purchased),
+    })
+  );
+});
+
+export const getPurchasedCourses = asyncHandler(async (req, res) => {
+  const purchases = await CoursePurchase.find({
+    userId: req.user._id,
+    // status: "completed",
+  }).populate({
+    path: "courseId",
+    select: "courseTitle courseThumbnail courseDescription category",
+    populate: {
+      path: "instructor",
+      select: "name avatar",
+    },
+  });
+
+
+  res.status(200).json(
+    new ApiResponse(
+      200,
+      purchases.map((purchase) => purchase.course)
+    )
+  );
+});

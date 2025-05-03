@@ -1,5 +1,5 @@
 import mongoose, { Schema } from "mongoose";
-import { PaymentStatus } from "../constants/constant";
+import { PaymentStatus } from "../constants/constant.js";
 
 const coursePurchaseSchema = new Schema(
   {

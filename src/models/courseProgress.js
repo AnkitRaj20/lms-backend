@@ -74,13 +74,11 @@ courseProgressSchema.pre("save", function (next) {
     ).length;
     const totalLecture = this.lecturesProgress.length;
     this.completionPercentage = (completedLecture / totalLecture) * 100;
-    this.isCompleted =
-      this.completionPercentage === 100 ? true : false;
+    this.isCompleted = this.completionPercentage === 100 ? true : false;
   }
 
   next();
 });
-
 
 export const CourseProgress = mongoose.model(
   "CourseProgress",
