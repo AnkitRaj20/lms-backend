@@ -10,7 +10,6 @@ import {
 
 import { verifyToken } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
-import { validateSignup } from "../middlewares/validate.middleware.js";
 
 const userRouter = Router();
 

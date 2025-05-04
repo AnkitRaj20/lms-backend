@@ -74,17 +74,33 @@ const courseSchema = new Schema(
       type: [
         {
           rating: { type: Number, min: 1, max: 5, required: true },
-          ratedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true }
-        }
+          ratedBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
+        },
       ],
-      default: [] // ✅ Initializes as empty array
+      default: [], // ✅ Initializes as empty array
     },
     totalLectures: {
       type: Number,
       default: 0,
     },
   },
-  { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
+  {
+    timestamps: true,
+    toJSON: {
+      virtuals: true,
+      transform: function (doc, ret) {
+        delete ret.ratings;
+        return ret;
+      },
+    },
+    toObject: {
+      virtuals: true,
+      transform: function (doc, ret) {
+        delete ret.ratings;
+        return ret;
+      },
+    },
+  }
 );
 
 courseSchema.virtual("averageRating").get(function () {
