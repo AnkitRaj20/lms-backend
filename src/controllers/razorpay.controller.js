@@ -15,36 +15,57 @@ const razorpayInstance = new razorpay({
 
 export const createRazorpayOrder = async (req, res) => {
   try {
-    const userId = req.user._id;
+    const userId = req.user?._id;
     const { courseId } = req.body;
+
+    if (!userId) throw new ApiError(401, "Unauthoized: userId missing");
+
     const course = await Course.findById(courseId);
 
     if (!course) {
       throw new ApiError("Course not found");
     }
 
+    if (course.instructor.toString() === userId.toString()) {
+      return res
+        .status(400)
+        .json(new ApiResponse(400, "You cannot purchase your own course"));
+    }
+
+    // Check if user has already purchased the course
+    const purchased = await CoursePurchase.exists({
+      user: req.user._id,
+      course: courseId,
+      status: PaymentStatus.SUCCESS,
+    });
+
+    if (purchased) {
+      return res.status(400).json(
+        new ApiResponse(400, "You already purchased this course", {
+          isPurchased: true,
+        })
+      );
+    }
+
+    const options = {
+      amount: course.price * 100,
+      currency: "INR",
+      receipt: `rcpt_${Date.now()}`, // always under 40 chars
+      notes: { courseId, userId },
+    };
+
+    const order = await razorpayInstance.orders.create(options);
+    // console.log("Razorpay order created:", order);
+
     const newPurchase = await CoursePurchase.create({
       user: userId,
       course: courseId,
       amount: course.price,
-      status: "pending",
-      paymentMethod: "razorpay",
-    });
-
-    const options = {
-      amount: course.price * 100, // amount in smallest currency unit
       currency: "INR",
-      receipt: `${newPurchase._id.toString()}_course${courseId}_user${userId}`,
-      notes: {
-        courseId,
-        userId,
-      },
-    };
-
-    const order = await razorpayInstance.orders.create(options);
-
-    newPurchase.paymentId = order.id;
-    await newPurchase.save({ validateBeforeSave: false });
+      status: PaymentStatus.PENDING,
+      paymentMethod: "razorpay",
+      paymentId: order.id,
+    });
 
     const response = {
       id: order.id,
@@ -64,9 +85,8 @@ export const createRazorpayOrder = async (req, res) => {
       .json(new ApiResponse(200, "Order created successfully", response));
   } catch (error) {
     logger.error("Error creating Razorpay order", error);
-    return res
-      .status(500)
-      .json(new ApiError(500, "Payment verification failed"));
+    console.error("Detailed error:", error); // Add this line
+    return res.status(500).json(new ApiError(500, "Payment creation failed"));
   }
 };
 
@@ -95,8 +115,14 @@ export const verifyRazorpayPayment = async (req, res) => {
       throw new ApiError(404, "Purchase not found");
     }
 
-    purchase.paymentStatus = PaymentStatus.SUCCESS;
+    //* If the purchase is verified then update the purchase status
+    purchase.status = PaymentStatus.SUCCESS;
     await purchase.save({ validateBeforeSave: false });
+
+    //* Add the user to the course's enrolled students
+    const course = await Course.findById(purchase.course);
+    course.enrolledStudents.push(purchase.user);
+    await course.save({ validateBeforeSave: false });
 
     return res.status(200).json(
       new ApiResponse(200, "Payment verified successfully", {
@@ -120,7 +146,8 @@ export const getCoursePurchaseStatus = asyncHandler(async (req, res) => {
   // Find course with populated data
   const course = await Course.findById(courseId)
     .populate("instructor", "name avatar")
-    .populate("lectures", "lectureTitle videoUrl duration");
+    .populate("lectures", "lectureTitle videoUrl duration")
+    .populate("enrolledStudents", "name avatar ");
 
   if (!course) {
     throw new ApiError("Course not found", 404);
@@ -130,7 +157,7 @@ export const getCoursePurchaseStatus = asyncHandler(async (req, res) => {
   const purchased = await CoursePurchase.exists({
     user: req.user._id,
     course: courseId,
-    status: "completed",
+    status: PaymentStatus.SUCCESS,
   });
 
   res.status(200).json(
@@ -144,7 +171,7 @@ export const getCoursePurchaseStatus = asyncHandler(async (req, res) => {
 export const getPurchasedCourses = asyncHandler(async (req, res) => {
   const purchases = await CoursePurchase.find({
     userId: req.user._id,
-    // status: "completed",
+    status: "completed",
   }).populate({
     path: "courseId",
     select: "courseTitle courseThumbnail courseDescription category",
@@ -153,7 +180,6 @@ export const getPurchasedCourses = asyncHandler(async (req, res) => {
       select: "name avatar",
     },
   });
-
 
   res.status(200).json(
     new ApiResponse(

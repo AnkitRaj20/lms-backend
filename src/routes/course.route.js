@@ -8,6 +8,7 @@ import {
   getCourseLectures,
   getMyCreatedCourses,
   getPublishedCourses,
+  reviewCourse,
   searchCourses,
   updateCourseDetails,
 } from "../controllers/course.controller.js";
@@ -23,7 +24,6 @@ courseRouter.get("/search", searchCourses);
 courseRouter.use(verifyToken);
 
 // Only instructors can create new courses
-
 // Course Management
 courseRouter
   .route("/")
@@ -49,4 +49,6 @@ courseRouter
     upload.single("video"),
     addLectureToCourse
   );
+
+courseRouter.route("/review/:courseId").patch(reviewCourse)
 export default courseRouter;

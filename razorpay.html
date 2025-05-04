@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Razorpay Checkout</title>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</head>
+<body>
+  <button id="checkout-btn">Checkout</button>
+
+  <script>
+    // Event listener for the checkout button
+    document.getElementById("checkout-btn").addEventListener("click", async function () {
+      try {
+        // Step 1: Create Razorpay order by calling your backend API
+        const response = await fetch('http://localhost:8001/api/v1/purchase/checkout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2ODE2NTU0ZDM0NjEyMWExOWRmZjNkODMiLCJpYXQiOjE3NDYyOTQwOTQsImV4cCI6MTc0NjM4MDQ5NH0.HvuhJBo0OgwebRN1XPQJnGWTB8sItNFEYDxvD7UcmwI'
+          },
+          body: JSON.stringify({
+            courseId: '680f7f91c6d8a0a1a1d2fc1a', // Replace with your actual course ID
+          }),
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          const order = data.message; // The order data returned from your backend
+
+          // Step 2: Initialize Razorpay Checkout with order details
+          const options = {
+            // key: 'your_razorpay_key', // Replace with your Razorpay API key
+            key: 'rzp_test_nL3hKuYYYAn1tM', // Replace with your Razorpay API key
+            amount: order.amount * 100, // Amount in paise (multiplied by 100)
+            currency: order.currency,
+            name: order.course.title, // Optional: Your course name or any name
+            description: order.course.description, // Optional: Description of the course 
+            image: order.course.thumbnail, // Optional: Image URL for the course
+            order_id: order.id, // Razorpay order ID
+            handler: async function (response) {
+              // Step 3: Payment Successful, verify payment on your backend
+              const paymentDetails = {
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              };
+
+              // Send the payment response to your backend for verification
+              const verifyResponse = await fetch('http://localhost:8001/api/v1/purchase/verify', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2ODE2NTU0ZDM0NjEyMWExOWRmZjNkODMiLCJpYXQiOjE3NDYyOTQwOTQsImV4cCI6MTc0NjM4MDQ5NH0.HvuhJBo0OgwebRN1XPQJnGWTB8sItNFEYDxvD7UcmwI'
+                },
+                body: JSON.stringify(paymentDetails),
+              });
+
+              const verifyData = await verifyResponse.json();
+
+              if (verifyData.success) {
+                alert('Payment successful!');
+              } else {
+                alert('Payment verification failed!');
+              }
+            },
+            prefill: {
+              name: 'User Name', // User's name
+              email: 'user@example.com', // User's email
+              contact: '9876543210', // User's contact number
+            },
+            notes: {
+              courseId: '680f7f91c6d8a0a1a1d2fc1a', // Optional: Course ID for your reference
+            },
+            theme: {
+              color: "#F37254", // Customize the color of the Razorpay Checkout button
+            },
+          };
+
+          const rzp1 = new Razorpay(options); // Create a Razorpay checkout instance
+          rzp1.open(); // Open the Razorpay payment gateway modal
+        } else {
+          alert('Error creating Razorpay order');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred while initiating payment');
+      }
+    });
+  </script>
+</body>
+</html>

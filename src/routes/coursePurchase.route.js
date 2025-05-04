@@ -13,7 +13,7 @@ const coursePurchaseRouter = express.Router();
 // Create Razorpay order for course purchase
 
 coursePurchaseRouter.post("/checkout", verifyToken, createRazorpayOrder);
-coursePurchaseRouter.post("/verify-payment", verifyToken, verifyRazorpayPayment);
+coursePurchaseRouter.post("/verify", verifyToken, verifyRazorpayPayment);
 
 coursePurchaseRouter
   .route("/:courseId/detail-with-status")

@@ -324,3 +324,62 @@ export const getCourseLectures = asyncHandler(async (req, res) => {
     )
   );
 });
+
+export const reviewCourse = asyncHandler(async (req, res) => {
+  const { courseId } = req.params;
+  const { rating } = req.body;
+
+  console.log(rating, "rating from body");
+
+  if (!rating || rating < 1 || rating > 5) {
+    throw new ApiError(400, "Rating must be between 1 and 5");
+  }
+
+  const course = await Course.findById(courseId);
+  if (!course) {
+    throw new ApiError(404, "Course not found");
+  }
+
+  if (course.instructor.toString() === req.user._id.toString()) {
+    throw new ApiError(403, "You cannot rate your own course");
+  }
+
+  const isPurchased = course.enrolledStudents.find(
+    (s) => s.toString() === req.user._id.toString()
+  );
+
+  if (!isPurchased) {
+    throw new ApiError(403, "You must purchase the course to rate it");
+  }
+
+  console.log("course>>>>>", course);
+
+  const alreadyRated = course.ratings.find(
+    (r) => r.ratedBy.toString() === req.user._id.toString()
+  );
+
+  if (alreadyRated) {
+    course.ratings.forEach((r) => {
+      if (r.ratedBy.toString() === req.user._id.toString()) {
+        r.rating = rating;
+      }
+    });
+  } else {
+    course.ratings.push({
+      ratedBy: req.user._id,
+      rating: rating,
+    });
+  }
+
+  // let avgRating = 0;
+  // course.ratings.forEach((r) => {
+  //   avgRating += r.rating;
+  // })
+
+  // course.averageRating = avgRating / course.ratings.length;
+  await course.save();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, course, "Course rated successfully"));
+});

@@ -71,8 +71,13 @@ const courseSchema = new Schema(
       default: 0,
     },
     ratings: {
-      type: Number,
-      default: 0,
+      type: [
+        {
+          rating: { type: Number, min: 1, max: 5, required: true },
+          ratedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true }
+        }
+      ],
+      default: [] // ✅ Initializes as empty array
     },
     totalLectures: {
       type: Number,
@@ -84,9 +89,9 @@ const courseSchema = new Schema(
 
 courseSchema.virtual("averageRating").get(function () {
   // Calculate the average rating of the course
-  if (this.ratings?.length === undefined || this.ratings?.length === 0) return 0;
-  const totalRatings = this.ratings.reduce((acc, rating) => acc + rating, 0);
-  return totalRatings / this.ratings.length;
+  if (!this.ratings?.length) return 0;
+  const sum = this.ratings.reduce((acc, r) => acc + r.rating, 0);
+  return (sum / this.ratings.length).toFixed(1);
 });
 
 courseSchema.pre("save", function (next) {
