@@ -4,6 +4,8 @@ import asyncHandler from "../utils/asyncHandler.util.js";
 import { ApiResponse } from "../utils/ApiResponse.util.js";
 
 import ApiError from "../utils/ApiError.util.js";
+import { User } from "../models/user.model.js";
+import { generateStyledCertificate } from "../utils/pdfGenerator.util.js";
 
 export const getUserCourseProgress = asyncHandler(async (req, res) => {
   const { courseId } = req.params;
@@ -26,6 +28,7 @@ export const getUserCourseProgress = asyncHandler(async (req, res) => {
     course: courseId,
     user: req.id,
   }).populate("course");
+
 
   // If no progress found, return course details with empty progress
   if (!courseProgress) {
@@ -124,7 +127,7 @@ export const markCourseAsCompleted = asyncHandler(async (req, res) => {
   });
 
   if (!courseProgress) {
-    throw new ApiError("Course progress not found", 404);
+    throw new ApiError(404,"Course progress not found");
   }
 
   // Mark all lectures as isCompleted
@@ -173,3 +176,36 @@ export const resetCourseProgress = asyncHandler(async (req, res) => {
       new ApiResponse(200, courseProgress, "Course progress reset successfully")
     );
 });
+
+export const getCourseCertificate = asyncHandler(async (req, res) => {
+  const { courseId } = req.params;
+
+  const courseProgress = await CourseProgress.findOne({
+    course: courseId,
+    user: req.user._id,
+  }).populate("course","title instructor").populate("user","name");
+
+  
+
+  if (!courseProgress) {
+    throw new ApiError(404,"Course progress not found");
+  }
+
+  if (!courseProgress.isCompleted) {
+    throw new ApiError(400,"Course not completed");
+  }
+
+  const instructorData = await User.findById(courseProgress.course.instructor).select("name");
+
+  // Generate and return the certificate
+
+  const response = await generateStyledCertificate(
+    courseProgress.user,
+    courseProgress.course,
+    instructorData
+  );
+
+  res.status(200).json(
+    new ApiResponse(200, response, "Certificate generated successfully")
+  );
+})

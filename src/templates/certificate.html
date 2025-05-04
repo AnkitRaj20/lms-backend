@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Certificate of Completion</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #fdfcf8;
+      font-family: 'Georgia', serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .certificate {
+      width: 80%;
+      max-width: 900px;
+      padding: 60px;
+      border: 12px double #2c3e50;
+      background: white;
+      box-shadow: 0 0 20px rgba(0,0,0,0.1);
+      text-align: center;
+      position: relative;
+    }
+
+    .certificate h1 {
+      font-size: 48px;
+      color: #2c3e50;
+      margin-bottom: 20px;
+      letter-spacing: 2px;
+    }
+
+    .certificate p {
+      font-size: 20px;
+      margin: 10px 0;
+    }
+
+    .name {
+      font-size: 32px;
+      font-weight: bold;
+      margin: 20px 0;
+      border-bottom: 2px solid #2c3e50;
+      display: inline-block;
+      padding: 5px 20px;
+      color: #34495e;
+    }
+    .instructor-name {
+      font-size: 24px;
+      margin: 5px 0;
+      display: inline-block;
+      padding: 5px 20px;
+    }
+
+    .course {
+      font-size: 26px;
+      font-style: italic;
+      color: #2c3e50;
+      margin-top: 10px;
+    }
+
+    .date {
+      font-size: 18px;
+      margin-top: 60px;
+      color: #555;
+    }
+
+    .signature {
+      position: absolute;
+      right: 60px;
+      bottom: 40px;
+      text-align: center;
+    }
+
+    .signature-line {
+      width: 200px;
+      border-top: 1px solid #333;
+      margin: 0 auto;
+    }
+
+    .signature p {
+      margin-top: 5px;
+      font-size: 14px;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <div class="certificate">
+    <h1>Certificate of Completion</h1>
+    <p>This certifies that</p>
+    <div class="name">{{name}}</div>
+    <p>has successfully completed the course</p>
+    <div class="course">“{{course}}”</div>
+    <div class="date">Dated: {{date}}</div>
+
+    <div class="signature">
+     <div class="instructor-name">{{instructor}}</div>
+      <div class="signature-line"></div>
+      <p>Instructor's Signature</p>
+    </div>
+  </div>
+</body>
+</html>
