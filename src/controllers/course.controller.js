@@ -6,7 +6,6 @@ import asyncHandler from "../utils/asyncHandler.util.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.util.js";
 
 export const createNewCourse = asyncHandler(async (req, res) => {
-  // TODO: Implement create new course functionality
   const { title, description, category, price, level } = req.body;
   const instructor = req.user._id; // Assuming the instructor is the logged-in user
 
@@ -37,7 +36,6 @@ export const createNewCourse = asyncHandler(async (req, res) => {
  * @route GET /api/v1/courses/search
  */
 export const searchCourses = asyncHandler(async (req, res) => {
-  // TODO: Implement search courses functionality
   const {
     query = "",
     categories = [],
@@ -100,14 +98,9 @@ export const searchCourses = asyncHandler(async (req, res) => {
  * @route GET /api/v1/courses/published
  */
 export const getPublishedCourses = asyncHandler(async (req, res) => {
-  // TODO: Implement get published courses functionality
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
   const skip = (page - 1) * limit;
-  // const courses = await Course.find({ isPublished: true }).populate(
-  //   "instructor",
-  //   "name avatar"
-  // );
 
   const [courses, total] = await Promise.all([
     Course.find({ isPublished: true })
@@ -121,10 +114,6 @@ export const getPublishedCourses = asyncHandler(async (req, res) => {
 
     Course.countDocuments({ isPublished: true }),
   ]);
-
-  // if (total === 0) {
-  //   throw new ApiError(404,"No published courses found");
-  // }
 
   return res.status(200).json(
     new ApiResponse(
@@ -148,7 +137,6 @@ export const getPublishedCourses = asyncHandler(async (req, res) => {
  * @route GET /api/v1/courses/my-courses
  */
 export const getMyCreatedCourses = asyncHandler(async (req, res) => {
-  // TODO: Implement get my created courses functionality
   const instructor = req.user._id;
 
   const myCourses = await Course.find({ instructor }).populate(
@@ -169,7 +157,6 @@ export const getMyCreatedCourses = asyncHandler(async (req, res) => {
  * @route PATCH /api/v1/courses/:courseId
  */
 export const updateCourseDetails = asyncHandler(async (req, res) => {
-  // TODO: Implement update course details functionality
   const { id: courseId } = req.params;
   const instructor = req.user._id; // Assuming the instructor is the logged-in user
 
@@ -206,7 +193,6 @@ export const updateCourseDetails = asyncHandler(async (req, res) => {
  * @route GET /api/v1/courses/:courseId
  */
 export const getCourseDetails = asyncHandler(async (req, res) => {
-  // TODO: Implement get course details functionality
   const { id: courseId } = req.params;
   const course = await Course.findById(courseId)
     .populate("instructor", "name avatar bio")
@@ -233,7 +219,6 @@ export const getCourseDetails = asyncHandler(async (req, res) => {
  * @route POST /api/v1/courses/:courseId/lectures
  */
 export const addLectureToCourse = asyncHandler(async (req, res) => {
-  // TODO: Implement add lecture to course functionality
   const { id: courseId } = req.params;
 
   const { title, description, isPreview } = req.body;
@@ -287,8 +272,6 @@ export const addLectureToCourse = asyncHandler(async (req, res) => {
  * @route GET /api/v1/courses/:courseId/lectures
  */
 export const getCourseLectures = asyncHandler(async (req, res) => {
-  // TODO: Implement get course lectures functionality
-
   const { id: courseId } = req.params;
 
   const course = await Course.findById(courseId).populate({
